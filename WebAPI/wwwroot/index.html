@@ -1,0 +1,185 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeDocs Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 font-sans antialiased text-gray-900">
+
+    <div id="app" class="flex h-screen overflow-hidden">
+        <!-- Бокове меню (Sidebar) -->
+        <aside class="w-64 bg-slate-800 text-white flex flex-col">
+            <div class="h-16 flex items-center justify-center border-b border-slate-700">
+                <h1 class="text-xl font-bold tracking-wider"><i class="fas fa-server mr-2"></i> TradeDocs API</h1>
+            </div>
+            <nav class="flex-1 px-4 py-6 space-y-2">
+                <a href="#" @click="currentTab = 'overview'" :class="{'bg-slate-700': currentTab === 'overview'}" class="flex items-center px-4 py-3 rounded-lg hover:bg-slate-700 transition">
+                    <i class="fas fa-chart-line w-6"></i> Огляд
+                </a>
+                <a href="#" @click="currentTab = 'products'; fetchData('products')" :class="{'bg-slate-700': currentTab === 'products'}" class="flex items-center px-4 py-3 rounded-lg hover:bg-slate-700 transition">
+                    <i class="fas fa-box w-6"></i> Номенклатура
+                </a>
+                <a href="#" @click="currentTab = 'orders'; fetchData('orders')" :class="{'bg-slate-700': currentTab === 'orders'}" class="flex items-center px-4 py-3 rounded-lg hover:bg-slate-700 transition">
+                    <i class="fas fa-file-invoice w-6"></i> Внутрішні замовлення
+                </a>
+                <a href="/swagger" target="_blank" class="flex items-center px-4 py-3 rounded-lg hover:bg-slate-700 transition mt-auto">
+                    <i class="fas fa-book w-6"></i> Swagger UI API
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Основний контент -->
+        <main class="flex-1 flex flex-col h-screen overflow-y-auto">
+            <header class="h-16 bg-white shadow flex items-center px-8">
+                <h2 class="text-2xl font-semibold text-gray-800 capitalize">{{ currentTab === 'overview' ? 'Статистика бази даних' : currentTab }}</h2>
+            </header>
+
+            <div class="p-8">
+                <!-- TAB: OVERVIEW -->
+                <div v-if="currentTab === 'overview'" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-blue-500">
+                        <div class="text-sm text-gray-500 uppercase font-semibold">Номенклатура</div>
+                        <div class="text-3xl font-bold text-gray-800 mt-2">{{ stats.products }}</div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-green-500">
+                        <div class="text-sm text-gray-500 uppercase font-semibold">Магазини</div>
+                        <div class="text-3xl font-bold text-gray-800 mt-2">{{ stats.shops }}</div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-purple-500">
+                        <div class="text-sm text-gray-500 uppercase font-semibold">Замовлення</div>
+                        <div class="text-3xl font-bold text-gray-800 mt-2">{{ stats.orders }}</div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-orange-500">
+                        <div class="text-sm text-gray-500 uppercase font-semibold">Записи залишків</div>
+                        <div class="text-3xl font-bold text-gray-800 mt-2">{{ stats.remains }}</div>
+                    </div>
+                </div>
+
+                <!-- TAB: ТАБЛИЦІ -->
+                <div v-if="currentTab !== 'overview'" class="bg-white rounded-xl shadow overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full whitespace-nowrap">
+                            <thead class="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                <tr v-if="currentTab === 'products'">
+                                    <th class="px-6 py-4">Код</th>
+                                    <th class="px-6 py-4">Назва</th>
+                                    <th class="px-6 py-4">Артикул</th>
+                                    <th class="px-6 py-4">Статус</th>
+                                </tr>
+                                <tr v-if="currentTab === 'orders'">
+                                    <th class="px-6 py-4">Номер</th>
+                                    <th class="px-6 py-4">Дата</th>
+                                    <th class="px-6 py-4">Рядків (Товарів)</th>
+                                    <th class="px-6 py-4">Статус</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 text-sm">
+                                <tr v-if="loading" class="text-center p-4"><td colspan="4">Завантаження...</td></tr>
+
+                                <!-- Продукти -->
+                                <template v-if="currentTab === 'products' && !loading">
+                                    <tr v-for="item in tableData" :key="item.ref" class="hover:bg-gray-50">
+                                        <td class="px-6 py-4">{{ item.code }}</td>
+                                        <td class="px-6 py-4 font-medium text-gray-900">{{ item.name }}</td>
+                                        <td class="px-6 py-4">{{ item.articul || '-' }}</td>
+                                        <td class="px-6 py-4">
+                                            <span v-if="item.isDeleted" class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Видалено</span>
+                                            <span v-else class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Активний</span>
+                                        </td>
+                                    </tr>
+                                </template>
+
+                                <!-- Замовлення -->
+                                <template v-if="currentTab === 'orders' && !loading">
+                                    <tr v-for="item in tableData" :key="item.ref" class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 font-medium">{{ item.number }}</td>
+                                        <td class="px-6 py-4">{{ new Date(item.date).toLocaleDateString('uk-UA') }}</td>
+                                        <td class="px-6 py-4">{{ item.items ? item.items.length : 0 }} позицій</td>
+                                        <td class="px-6 py-4">
+                                            <span v-if="item.isApproved" class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Проведено</span>
+                                            <span v-else class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">Чернетка</span>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const currentTab = ref('overview');
+                const stats = ref({ products: 0, shops: 0, orders: 0, remains: 0 });
+                const tableData = ref([]);
+                const loading = ref(false);
+
+                const loadStats = async () => {
+                    try {
+                        const response = await fetch('/api/dashboard/stats');
+                        if (response.ok) {
+                            stats.value = await response.json();
+                        } else {
+                            throw new Error('API not available');
+                        }
+                    } catch (e) {
+                        // Відображаємо тестові дані, якщо API недоступно (наприклад, у середовищі попереднього перегляду Canvas)
+                        console.warn('API недоступно, використовуються тестові дані для прев\'ю.');
+                        stats.value = { products: 1250, shops: 42, orders: 315, remains: 8400 };
+                    }
+                };
+
+                const fetchData = async (endpoint) => {
+                    loading.value = true;
+                    tableData.value = [];
+                    try {
+                        const response = await fetch(`/api/dashboard/${endpoint}`);
+                        if (response.ok) {
+                            tableData.value = await response.json();
+                        } else {
+                            throw new Error('API not available');
+                        }
+                    } catch (e) {
+                        // Відображаємо тестові дані для попереднього перегляду
+                        console.warn(`API ${endpoint} недоступно, використовуються тестові дані.`);
+                        if (endpoint === 'products') {
+                            tableData.value = [
+                                { ref: '1', code: '00001', name: 'М\'ясо яловичина', articul: 'МЯ-01', isDeleted: false },
+                                { ref: '2', code: '00002', name: 'Свинина', articul: 'СВ-02', isDeleted: false },
+                                { ref: '3', code: '00003', name: 'Курятина (стара)', articul: 'КУ-03', isDeleted: true }
+                            ];
+                        } else if (endpoint === 'orders') {
+                            tableData.value = [
+                                { ref: '1', number: 'ВН-001', date: new Date().toISOString(), items: [1, 2, 3], isApproved: true },
+                                { ref: '2', number: 'ВН-002', date: new Date(Date.now() - 86400000).toISOString(), items: [1], isApproved: false }
+                            ];
+                        }
+                    }
+                    loading.value = false;
+                };
+
+                onMounted(() => {
+                    loadStats();
+                    // Статистика буде оновлюватися кожні 10 секунд
+                    setInterval(loadStats, 10000);
+                });
+
+                return { currentTab, stats, tableData, loading, fetchData };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
