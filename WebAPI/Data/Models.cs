@@ -11,30 +11,36 @@ namespace TradeDocsApi.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-        // Довідники
         public DbSet<Product> Products { get; set; }
         public DbSet<Counterparty> Counterparties { get; set; }
         public DbSet<Shop> Shops { get; set; }
         public DbSet<Worker> Workers { get; set; }
 
-        // Документи (Мають табличні частини)
         public DbSet<Specification> Specifications { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<ReturnAndComing> ReturnsAndComings { get; set; }
 
-        // Регістри (Складені ключі)
         public DbSet<Remain> Remains { get; set; }
         public DbSet<Price> Prices { get; set; }
+
+        // НОВА ТАБЛИЦЯ: Журнал обмінів з 1С
+        public DbSet<SyncHistory> SyncHistories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
-            // Налаштування складених ключів для регістрів
+            // Виправляємо попередження про decimal: глобально задаємо формат 18,4
+            foreach (var property in builder.Model.GetEntityTypes()
+                .SelectMany(t => t.GetProperties())
+                .Where(p => p.ClrType == typeof(decimal) || p.ClrType == typeof(decimal?)))
+            {
+                property.SetColumnType("decimal(18,4)");
+            }
+
             builder.Entity<Remain>().HasKey(r => new { r.Subdivision, r.ProductUid });
             builder.Entity<Price>().HasKey(p => new { p.PriceTypeRef, p.ProductRef });
 
-            // Каскадне видалення для табличних частин документів
             builder.Entity<Specification>().HasMany(s => s.Items).WithOne().HasForeignKey(i => i.ParentRef).OnDelete(DeleteBehavior.Cascade);
             builder.Entity<Order>().HasMany(o => o.Items).WithOne().HasForeignKey(i => i.ParentRef).OnDelete(DeleteBehavior.Cascade);
             builder.Entity<ReturnAndComing>().HasMany(r => r.Items).WithOne().HasForeignKey(i => i.ParentRef).OnDelete(DeleteBehavior.Cascade);
@@ -44,6 +50,19 @@ namespace TradeDocsApi.Data
     // ==========================================
     // 2. СУТНОСТІ БАЗИ ДАНИХ (ENTITIES)
     // ==========================================
+
+    // СУТНІСТЬ ЛОГІВ
+    public class SyncHistory
+    {
+        [Key] public int Id { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string DataType { get; set; } = "";
+        public int RecordCount { get; set; }
+        public bool IsSuccess { get; set; }
+        public string? ErrorMessage { get; set; }
+        public long ExecutionTimeMs { get; set; }
+    }
+
     public class Product { [Key] public string Ref { get; set; } = ""; public string? Code { get; set; } public string? Name { get; set; } public string? Articul { get; set; } public string? Barcode { get; set; } public bool IsFolder { get; set; } public bool IsActual { get; set; } public bool IsDeleted { get; set; } public string? ParentRef { get; set; } }
     public class Counterparty { [Key] public string Ref { get; set; } = ""; public string? Name { get; set; } public string? Code { get; set; } public string? TaxId { get; set; } public bool IsDeleted { get; set; } }
     public class Shop { [Key] public string Ref { get; set; } = ""; public string? Name { get; set; } public string? ShopNumber { get; set; } public bool IsDeleted { get; set; } public string? PriceType { get; set; } public string? Subdivision { get; set; } public string? SubdivisionName { get; set; } }
@@ -62,14 +81,10 @@ namespace TradeDocsApi.Data
     public class Price { public string PriceTypeRef { get; set; } = ""; public string ProductRef { get; set; } = ""; public decimal PriceValue { get; set; } public string? Currency { get; set; } }
 
     // ==========================================
-    // 3. DTO (DATA TRANSFER OBJECTS для 1С)
+    // 3. DTO (ДЛЯ ДЕСЕРІАЛІЗАЦІЇ З 1С)
     // ==========================================
     public class SyncPayload { public string Source { get; set; } = ""; public string Target { get; set; } = ""; public string DataType { get; set; } = ""; public string Payload { get; set; } = ""; }
     public class BaseDto { [JsonPropertyName("Ref")] public string Ref { get; set; } = ""; [JsonPropertyName("isPhysicallyDeleted")] public bool? IsPhysicallyDeleted { get; set; } }
-
-    // ==========================================
-    // ДОДАНІ ВАШІ DTO КЛАСИ ДЛЯ ДЕСЕРІАЛІЗАЦІЇ
-    // ==========================================
 
     public class ProductDto : BaseDto { public string? Code { get; set; } public string? Name { get; set; } public string? Articul { get; set; } public string? Barcode { get; set; } public bool IsFolder { get; set; } public bool IsActual { get; set; } public bool IsDeleted { get; set; } public string? ParentRef { get; set; } }
     public class CounterpartyDto : BaseDto { public string? Name { get; set; } public string? Code { get; set; } public string? TaxId { get; set; } public bool IsDeleted { get; set; } }

@@ -3,22 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TradeDocs Dashboard Pro</title>
-    <!-- Tailwind CSS -->
+    <title>TradeDocs Dashboard Enterprise</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        [v-cloak] {
+            display: none;
         }
-        /* Плавна анімація для бокової панелі деталей */
+
         .slide-enter-active, .slide-leave-active {
             transition: transform 0.3s ease-in-out;
         }
@@ -30,359 +24,226 @@
         .slide-enter-to, .slide-leave-from {
             transform: translateX(0);
         }
-        /* Кастомний скроллбар */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
-        }
-
-            ::-webkit-scrollbar-thumb:hover {
-                background: #94a3b8;
-            }
     </style>
 </head>
 <body class="bg-slate-50 font-sans antialiased text-slate-800 h-screen flex overflow-hidden">
 
-    <div id="app" class="flex w-full h-full" v-cloak>
+    <div id="app" class="w-full h-full" v-cloak>
 
-        <!-- Бокове меню (Sidebar) -->
-        <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col shadow-xl z-20 transition-all duration-300">
-            <div class="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-950">
-                <i class="fas fa-layer-group text-blue-500 text-xl mr-3"></i>
-                <h1 class="text-lg font-bold text-white tracking-wide">TradeDocs API</h1>
+        <!-- Екран Логіну -->
+        <div v-if="!isAuthenticated" class="min-h-screen flex items-center justify-center bg-slate-900 w-full relative">
+            <div class="absolute inset-0 bg-blue-600/10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/40 via-slate-900/0"></div>
+            <div class="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-md z-10 relative">
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-shield-alt text-4xl text-blue-600"></i>
+                    </div>
+                    <h2 class="text-3xl font-bold text-slate-800 tracking-tight">TradeDocs API</h2>
+                    <p class="text-slate-500 mt-2">Авторизуйтеся для доступу до панелі</p>
+                </div>
+                <form @submit.prevent="login">
+                    <div class="mb-5">
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Користувач</label>
+                        <input v-model="auth.username" type="text" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" required>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Пароль</label>
+                        <input v-model="auth.password" type="password" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" required>
+                    </div>
+                    <div v-if="auth.error" class="mb-5 p-3 bg-red-50 text-red-600 rounded-lg text-sm text-center font-medium">{{ auth.error }}</div>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/30 transition transform hover:-translate-y-0.5">Увійти</button>
+                </form>
             </div>
+        </div>
 
-            <div class="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mt-2">Меню</div>
-            <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
-                <a href="#" @click.prevent="switchTab('overview')" :class="tabClass('overview')">
-                    <i class="fas fa-chart-pie w-6 text-center"></i> Дашборд
-                </a>
-                <a href="#" @click.prevent="switchTab('products')" :class="tabClass('products')">
-                    <i class="fas fa-box-open w-6 text-center"></i> Номенклатура
-                </a>
-                <a href="#" @click.prevent="switchTab('shops')" :class="tabClass('shops')">
-                    <i class="fas fa-store w-6 text-center"></i> Магазини
-                </a>
-                <a href="#" @click.prevent="switchTab('counterparties')" :class="tabClass('counterparties')">
-                    <i class="fas fa-users w-6 text-center"></i> Контрагенти
-                </a>
-                <div class="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mt-4">Документи</div>
-                <a href="#" @click.prevent="switchTab('orders')" :class="tabClass('orders')">
-                    <i class="fas fa-file-invoice-dollar w-6 text-center"></i> Замовлення
-                </a>
-            </nav>
-
-            <div class="p-4 border-t border-slate-800">
-                <a href="/swagger" target="_blank" class="flex items-center px-3 py-2 text-sm rounded-lg hover:bg-slate-800 hover:text-white transition-colors duration-200">
-                    <i class="fas fa-code w-6 text-center text-emerald-400"></i> Swagger UI
-                </a>
-            </div>
-        </aside>
-
-        <!-- Основний контент -->
-        <main class="flex-1 flex flex-col h-full relative overflow-hidden">
-
-            <!-- Верхня панель (Header) -->
-            <header class="h-16 bg-white shadow-sm flex items-center justify-between px-8 z-10 border-b border-slate-200">
-                <h2 class="text-xl font-semibold text-slate-800">{{ tabTitle }}</h2>
-
-                <!-- Рядок пошуку (ховаємо на дашборді) -->
-                <div v-if="currentTab !== 'overview'" class="relative w-72">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                        <i class="fas fa-search"></i>
-                    </span>
-                    <input v-model="searchQuery" type="text" class="w-full py-2 pl-10 pr-4 bg-slate-100 border-transparent rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="Пошук...">
+        <!-- Основний Дашборд -->
+        <div v-else class="flex w-full h-full">
+            <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col shadow-xl z-20">
+                <div class="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-950">
+                    <i class="fas fa-layer-group text-blue-500 text-xl mr-3"></i>
+                    <h1 class="text-lg font-bold text-white tracking-wide">TradeDocs API</h1>
                 </div>
-                <div v-else class="text-sm text-slate-500 flex items-center">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-                    API Активне
+                <nav class="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto">
+                    <a href="#" @click.prevent="switchTab('overview')" :class="tabClass('overview')"><i class="fas fa-chart-pie w-6"></i> Огляд</a>
+
+                    <div class="mt-4 mb-2 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Дані</div>
+                    <a href="#" @click.prevent="switchTab('products')" :class="tabClass('products')"><i class="fas fa-box w-6"></i> Номенклатура</a>
+                    <a href="#" @click.prevent="switchTab('orders')" :class="tabClass('orders')"><i class="fas fa-file-invoice w-6"></i> Замовлення</a>
+                    <a href="#" @click.prevent="switchTab('shops')" :class="tabClass('shops')"><i class="fas fa-store w-6"></i> Магазини</a>
+                    <a href="#" @click.prevent="switchTab('counterparties')" :class="tabClass('counterparties')"><i class="fas fa-users w-6"></i> Контрагенти</a>
+
+                    <div class="mt-4 mb-2 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Система</div>
+                    <a href="#" @click.prevent="switchTab('logs')" :class="tabClass('logs')"><i class="fas fa-terminal w-6"></i> Журнал обмінів</a>
+                </nav>
+                <div class="p-4 border-t border-slate-800">
+                    <button @click="logout" class="w-full flex items-center justify-center px-3 py-2.5 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition font-medium">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Вийти
+                    </button>
                 </div>
-            </header>
+            </aside>
 
-            <!-- Робоча область -->
-            <div class="flex-1 p-6 overflow-y-auto bg-slate-50 relative">
+            <main class="flex-1 flex flex-col h-full relative overflow-hidden">
+                <header class="h-16 bg-white shadow-sm flex items-center justify-between px-8 z-10 border-b border-slate-200">
+                    <h2 class="text-xl font-semibold text-slate-800">{{ tabTitle }}</h2>
+                    <div class="text-sm text-slate-500 flex items-center">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>Адміністратор
+                    </div>
+                </header>
 
-                <!-- Стан завантаження -->
-                <div v-if="loading" class="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
-                    <i class="fas fa-circle-notch fa-spin text-4xl text-blue-500 mb-3"></i>
-                    <p class="text-slate-600 font-medium">Завантаження даних...</p>
-                </div>
-
-                <!-- Вкладка: ОГЛЯД (Дашборд) -->
-                <div v-if="currentTab === 'overview'" class="space-y-6">
-                    <!-- Картки статистики -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex items-center hover:shadow-md transition-shadow">
-                            <div class="p-4 bg-blue-50 text-blue-600 rounded-xl mr-4"><i class="fas fa-box text-2xl"></i></div>
-                            <div>
-                                <p class="text-sm font-medium text-slate-500">Товари</p>
-                                <h3 class="text-2xl font-bold text-slate-800">{{ stats.products.toLocaleString() }}</h3>
-                            </div>
-                        </div>
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex items-center hover:shadow-md transition-shadow">
-                            <div class="p-4 bg-emerald-50 text-emerald-600 rounded-xl mr-4"><i class="fas fa-store text-2xl"></i></div>
-                            <div>
-                                <p class="text-sm font-medium text-slate-500">Магазини</p>
-                                <h3 class="text-2xl font-bold text-slate-800">{{ stats.shops.toLocaleString() }}</h3>
-                            </div>
-                        </div>
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex items-center hover:shadow-md transition-shadow">
-                            <div class="p-4 bg-purple-50 text-purple-600 rounded-xl mr-4"><i class="fas fa-file-invoice text-2xl"></i></div>
-                            <div>
-                                <p class="text-sm font-medium text-slate-500">Замовлення</p>
-                                <h3 class="text-2xl font-bold text-slate-800">{{ stats.orders.toLocaleString() }}</h3>
-                            </div>
-                        </div>
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex items-center hover:shadow-md transition-shadow">
-                            <div class="p-4 bg-amber-50 text-amber-600 rounded-xl mr-4"><i class="fas fa-layer-group text-2xl"></i></div>
-                            <div>
-                                <p class="text-sm font-medium text-slate-500">Залишки</p>
-                                <h3 class="text-2xl font-bold text-slate-800">{{ stats.remains.toLocaleString() }}</h3>
-                            </div>
-                        </div>
+                <div class="flex-1 p-6 overflow-y-auto bg-slate-50 relative">
+                    <div v-if="loading" class="absolute inset-0 bg-white/70 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                        <i class="fas fa-circle-notch fa-spin text-4xl text-blue-500 mb-3"></i>
                     </div>
 
-                    <!-- Графік та інформація -->
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                            <h3 class="text-lg font-semibold text-slate-800 mb-4">Активність обміну даних</h3>
-                            <div class="h-64 relative w-full">
-                                <canvas id="activityChart"></canvas>
+                    <!-- Вкладка: Огляд -->
+                    <div v-if="currentTab === 'overview'" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex items-center">
+                                <div class="p-4 bg-blue-50 text-blue-600 rounded-xl mr-4"><i class="fas fa-box text-2xl"></i></div>
+                                <div><p class="text-sm font-medium text-slate-500">Товари</p><h3 class="text-2xl font-bold">{{ stats.products.toLocaleString() }}</h3></div>
+                            </div>
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex items-center">
+                                <div class="p-4 bg-emerald-50 text-emerald-600 rounded-xl mr-4"><i class="fas fa-store text-2xl"></i></div>
+                                <div><p class="text-sm font-medium text-slate-500">Магазини</p><h3 class="text-2xl font-bold">{{ stats.shops.toLocaleString() }}</h3></div>
+                            </div>
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex items-center">
+                                <div class="p-4 bg-purple-50 text-purple-600 rounded-xl mr-4"><i class="fas fa-file-invoice text-2xl"></i></div>
+                                <div><p class="text-sm font-medium text-slate-500">Замовлення</p><h3 class="text-2xl font-bold">{{ stats.orders.toLocaleString() }}</h3></div>
+                            </div>
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex items-center">
+                                <div class="p-4 bg-amber-50 text-amber-600 rounded-xl mr-4"><i class="fas fa-layer-group text-2xl"></i></div>
+                                <div><p class="text-sm font-medium text-slate-500">Залишки</p><h3 class="text-2xl font-bold">{{ stats.remains.toLocaleString() }}</h3></div>
                             </div>
                         </div>
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                            <h3 class="text-lg font-semibold text-slate-800 mb-4">Системна інформація</h3>
-                            <ul class="space-y-4">
-                                <li class="flex items-start">
-                                    <span class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mt-1"><i class="fas fa-server"></i></span>
-                                    <div class="ml-3">
-                                        <p class="text-sm font-medium text-slate-800">Статус Сервера</p>
-                                        <p class="text-sm text-slate-500">Online, SQLite з'єднання активно</p>
-                                    </div>
-                                </li>
-                                <li class="flex items-start">
-                                    <span class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mt-1"><i class="fas fa-clock"></i></span>
-                                    <div class="ml-3">
-                                        <p class="text-sm font-medium text-slate-800">Останнє оновлення</p>
-                                        <p class="text-sm text-slate-500">{{ new Date().toLocaleTimeString('uk-UA') }}</p>
-                                    </div>
-                                </li>
-                                <li class="flex items-start">
-                                    <span class="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mt-1"><i class="fas fa-shield-alt"></i></span>
-                                    <div class="ml-3">
-                                        <p class="text-sm font-medium text-slate-800">Захист API</p>
-                                        <p class="text-sm text-slate-500">Увімкнено (X-Api-Key)</p>
-                                    </div>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Вкладки: ТАБЛИЦІ -->
-                <div v-else class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full max-h-[calc(100vh-140px)]">
-
-                    <div class="overflow-x-auto flex-1">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
-                                <!-- Заголовки: Продукти -->
-                                <tr v-if="currentTab === 'products'" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                    <th class="px-6 py-4">Код / Артикул</th>
-                                    <th class="px-6 py-4">Найменування</th>
-                                    <th class="px-6 py-4">Штрихкод</th>
-                                    <th class="px-6 py-4">Статус</th>
-                                </tr>
-                                <!-- Заголовки: Магазини -->
-                                <tr v-if="currentTab === 'shops'" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                    <th class="px-6 py-4">Код</th>
-                                    <th class="px-6 py-4">Найменування</th>
-                                    <th class="px-6 py-4">Підрозділ</th>
-                                    <th class="px-6 py-4">Статус</th>
-                                </tr>
-                                <!-- Заголовки: Контрагенти -->
-                                <tr v-if="currentTab === 'counterparties'" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                    <th class="px-6 py-4">Код</th>
-                                    <th class="px-6 py-4">Найменування</th>
-                                    <th class="px-6 py-4">ЄДРПОУ</th>
-                                    <th class="px-6 py-4">Статус</th>
-                                </tr>
-                                <!-- Заголовки: Замовлення -->
-                                <tr v-if="currentTab === 'orders'" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                    <th class="px-6 py-4">Номер документу</th>
-                                    <th class="px-6 py-4">Дата</th>
-                                    <th class="px-6 py-4">Кількість позицій</th>
-                                    <th class="px-6 py-4">Статус</th>
-                                    <th class="px-6 py-4 text-right">Дії</th>
-                                </tr>
-                            </thead>
-
-                            <tbody class="divide-y divide-slate-100 text-sm">
-                                <tr v-if="paginatedData.length === 0 && !loading" class="bg-white">
-                                    <td colspan="5" class="px-6 py-12 text-center text-slate-500">
-                                        <i class="fas fa-inbox text-4xl mb-3 text-slate-300 block"></i>
-                                        Даних не знайдено за вашим запитом
-                                    </td>
-                                </tr>
-
-                                <!-- Рядки: Продукти -->
-                                <template v-if="currentTab === 'products'">
-                                    <tr v-for="item in paginatedData" :key="item.ref" class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-6 py-3">
-                                            <div class="font-medium text-slate-900">{{ item.code || '-' }}</div>
-                                            <div class="text-xs text-slate-500">{{ item.articul || 'без артикулу' }}</div>
-                                        </td>
-                                        <td class="px-6 py-3 font-medium text-slate-800">{{ item.name }}</td>
-                                        <td class="px-6 py-3 text-slate-500">{{ item.barcode || '-' }}</td>
-                                        <td class="px-6 py-3">
-                                            <span v-if="item.isDeleted" class="px-2.5 py-1 bg-red-50 text-red-600 border border-red-200 rounded-md text-xs font-medium">Видалено</span>
-                                            <span v-else class="px-2.5 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-md text-xs font-medium">Активний</span>
-                                        </td>
-                                    </tr>
-                                </template>
-
-                                <!-- Рядки: Магазини -->
-                                <template v-if="currentTab === 'shops'">
-                                    <tr v-for="item in paginatedData" :key="item.ref" class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-6 py-3 font-medium text-slate-900">{{ item.shopNumber || item.code || '-' }}</td>
-                                        <td class="px-6 py-3 font-medium text-slate-800">{{ item.name }}</td>
-                                        <td class="px-6 py-3 text-slate-500">{{ item.subdivisionName || '-' }}</td>
-                                        <td class="px-6 py-3">
-                                            <span v-if="item.isDeleted" class="px-2.5 py-1 bg-red-50 text-red-600 border border-red-200 rounded-md text-xs font-medium">Зачинено</span>
-                                            <span v-else class="px-2.5 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-md text-xs font-medium">Працює</span>
-                                        </td>
-                                    </tr>
-                                </template>
-
-                                <!-- Рядки: Контрагенти -->
-                                <template v-if="currentTab === 'counterparties'">
-                                    <tr v-for="item in paginatedData" :key="item.ref" class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-6 py-3 font-medium text-slate-900">{{ item.code || '-' }}</td>
-                                        <td class="px-6 py-3 font-medium text-slate-800">{{ item.name }}</td>
-                                        <td class="px-6 py-3 text-slate-500">{{ item.taxId || '-' }}</td>
-                                        <td class="px-6 py-3">
-                                            <span v-if="item.isDeleted" class="px-2.5 py-1 bg-red-50 text-red-600 border border-red-200 rounded-md text-xs font-medium">Видалено</span>
-                                            <span v-else class="px-2.5 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-md text-xs font-medium">Активний</span>
-                                        </td>
-                                    </tr>
-                                </template>
-
-                                <!-- Рядки: Замовлення -->
-                                <template v-if="currentTab === 'orders'">
-                                    <tr v-for="item in paginatedData" :key="item.ref" class="hover:bg-slate-50 transition-colors cursor-pointer" @click="openDetails(item)">
-                                        <td class="px-6 py-4 font-semibold text-blue-600">{{ item.number }}</td>
-                                        <td class="px-6 py-4 text-slate-600">{{ formatDate(item.date) }}</td>
-                                        <td class="px-6 py-4">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                                                {{ item.items ? item.items.length : 0 }} позицій
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            <span v-if="item.isApproved" class="px-2.5 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded-md text-xs font-medium"><i class="fas fa-check-circle mr-1"></i>Проведено</span>
-                                            <span v-else class="px-2.5 py-1 bg-slate-50 text-slate-600 border border-slate-200 rounded-md text-xs font-medium"><i class="fas fa-file-alt mr-1"></i>Чернетка</span>
-                                        </td>
-                                        <td class="px-6 py-4 text-right">
-                                            <button class="text-slate-400 hover:text-blue-600 transition-colors" @click.stop="openDetails(item)">
-                                                <i class="fas fa-chevron-right"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Пагінація -->
-                    <div v-if="totalPages > 1" class="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl flex items-center justify-between">
-                        <div class="text-sm text-slate-500">
-                            Показано <span class="font-medium">{{ (currentPage - 1) * itemsPerPage + 1 }}</span> -
-                            <span class="font-medium">{{ Math.min(currentPage * itemsPerPage, filteredData.length) }}</span>
-                            з <span class="font-medium">{{ filteredData.length }}</span> записів
-                        </div>
-                        <div class="flex space-x-1">
-                            <button @click="currentPage--" :disabled="currentPage === 1" class="px-3 py-1 border border-slate-300 rounded-md bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"><i class="fas fa-chevron-left text-xs"></i></button>
-                            <span class="px-4 py-1 flex items-center text-sm font-medium text-slate-700">Стор. {{ currentPage }} з {{ totalPages }}</span>
-                            <button @click="currentPage++" :disabled="currentPage === totalPages" class="px-3 py-1 border border-slate-300 rounded-md bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"><i class="fas fa-chevron-right text-xs"></i></button>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- Виїзна панель (Slide-over) для деталей документа -->
-            <div v-if="selectedDocument" class="fixed inset-0 z-50 overflow-hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
-                <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" @click="closeDetails"></div>
-                <div class="fixed inset-y-0 right-0 max-w-2xl w-full flex">
-                    <transition name="slide">
-                        <div class="w-full h-full bg-white shadow-2xl flex flex-col transform">
-                            <!-- Хедер панелі -->
-                            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-                                <div>
-                                    <h2 class="text-lg font-bold text-slate-800" id="slide-over-title">
-                                        Документ №{{ selectedDocument.number }}
-                                    </h2>
-                                    <p class="text-sm text-slate-500 mt-1">Від {{ formatDate(selectedDocument.date) }}</p>
-                                </div>
-                                <button @click="closeDetails" class="text-slate-400 hover:text-slate-600 hover:bg-slate-200 p-2 rounded-full transition-colors focus:outline-none">
-                                    <i class="fas fa-times text-xl"></i>
-                                </button>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-slate-800">Об'єм вивантажених даних (за 7 днів)</h3>
                             </div>
+                            <div class="h-64"><canvas id="activityChart"></canvas></div>
+                        </div>
+                    </div>
 
-                            <!-- Вміст панелі (Таблична частина) -->
-                            <div class="flex-1 overflow-y-auto p-6">
-                                <h3 class="text-sm font-semibold text-slate-800 uppercase tracking-wider mb-4 border-b pb-2">Специфікація товарів ({{ selectedDocument.items ? selectedDocument.items.length : 0 }})</h3>
+                    <!-- Вкладки: Таблиці та Логи -->
+                    <div v-else class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full max-h-[calc(100vh-140px)]">
+                        <div class="overflow-x-auto flex-1">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead class="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
+                                    <tr v-if="currentTab === 'products'" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                        <th class="px-6 py-4">Код / Артикул</th>
+                                        <th class="px-6 py-4">Найменування</th>
+                                        <th class="px-6 py-4">Штрихкод</th>
+                                        <th class="px-6 py-4">Статус</th>
+                                    </tr>
+                                    <tr v-if="currentTab === 'orders'" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                        <th class="px-6 py-4">Номер</th>
+                                        <th class="px-6 py-4">Дата</th>
+                                        <th class="px-6 py-4">Рядків</th>
+                                        <th class="px-6 py-4">Статус</th>
+                                        <th class="px-6 py-4 text-right">Дії</th>
+                                    </tr>
+                                    <tr v-if="currentTab === 'shops' || currentTab === 'counterparties'" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                        <th class="px-6 py-4">Код</th>
+                                        <th class="px-6 py-4">Найменування</th>
+                                        <th class="px-6 py-4">Статус</th>
+                                    </tr>
+                                    <!-- Нова вкладка Логів -->
+                                    <tr v-if="currentTab === 'logs'" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                        <th class="px-6 py-4 w-48">Дата / Час</th>
+                                        <th class="px-6 py-4 w-32">Тип даних</th>
+                                        <th class="px-6 py-4 w-32">Записів</th>
+                                        <th class="px-6 py-4">Статус / Повідомлення</th>
+                                        <th class="px-6 py-4 text-right w-32">Час викон.</th>
+                                    </tr>
+                                </thead>
 
-                                <div v-if="!selectedDocument.items || selectedDocument.items.length === 0" class="text-center py-10 text-slate-500 border-2 border-dashed border-slate-200 rounded-xl">
-                                    <i class="fas fa-box-open text-3xl mb-2 text-slate-300"></i>
-                                    <p>Таблична частина порожня</p>
+                                <tbody class="divide-y divide-slate-100">
+                                    <tr v-if="tableData.length === 0 && !loading"><td colspan="5" class="px-6 py-12 text-center text-slate-500">Немає даних</td></tr>
+
+                                    <template v-if="currentTab === 'products'">
+                                        <tr v-for="item in tableData" :key="item.ref" class="hover:bg-slate-50">
+                                            <td class="px-6 py-3"><div class="font-medium text-slate-900">{{ item.code || '-' }}</div><div class="text-xs text-slate-500">{{ item.articul }}</div></td>
+                                            <td class="px-6 py-3 font-medium text-slate-800">{{ item.name }}</td>
+                                            <td class="px-6 py-3 text-slate-500">{{ item.barcode || '-' }}</td>
+                                            <td class="px-6 py-3"><span v-if="item.isDeleted" class="px-2 py-1 bg-red-50 text-red-600 rounded text-xs">Видалено</span><span v-else class="px-2 py-1 bg-emerald-50 text-emerald-600 rounded text-xs">Активний</span></td>
+                                        </tr>
+                                    </template>
+
+                                    <template v-if="currentTab === 'orders'">
+                                        <tr v-for="item in tableData" :key="item.ref" class="hover:bg-slate-50 cursor-pointer" @click="openDetails(item)">
+                                            <td class="px-6 py-4 font-semibold text-blue-600">{{ item.number }}</td>
+                                            <td class="px-6 py-4 text-slate-600">{{ formatDateTime(item.date) }}</td>
+                                            <td class="px-6 py-4">{{ item.items ? item.items.length : 0 }} поз.</td>
+                                            <td class="px-6 py-4"><span v-if="item.isApproved" class="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs">Проведено</span><span v-else class="px-2 py-1 bg-slate-100 rounded text-xs">Чернетка</span></td>
+                                            <td class="px-6 py-4 text-right"><i class="fas fa-chevron-right text-slate-400"></i></td>
+                                        </tr>
+                                    </template>
+
+                                    <template v-if="currentTab === 'shops' || currentTab === 'counterparties'">
+                                        <tr v-for="item in tableData" :key="item.ref" class="hover:bg-slate-50">
+                                            <td class="px-6 py-3 font-medium">{{ item.shopNumber || item.code || '-' }}</td>
+                                            <td class="px-6 py-3">{{ item.name }}</td>
+                                            <td class="px-6 py-3"><span v-if="item.isDeleted" class="px-2 py-1 bg-red-50 text-red-600 rounded text-xs">Видалено</span><span v-else class="px-2 py-1 bg-emerald-50 text-emerald-600 rounded text-xs">Активний</span></td>
+                                        </tr>
+                                    </template>
+
+                                    <!-- Рядки Логів -->
+                                    <template v-if="currentTab === 'logs'">
+                                        <tr v-for="item in tableData" :key="item.id" class="hover:bg-slate-50 font-mono text-xs">
+                                            <td class="px-6 py-3 text-slate-500">{{ formatDateTime(item.timestamp) }}</td>
+                                            <td class="px-6 py-3 font-semibold text-blue-600">{{ item.dataType }}</td>
+                                            <td class="px-6 py-3">{{ item.recordCount }}</td>
+                                            <td class="px-6 py-3">
+                                                <div v-if="item.isSuccess" class="text-emerald-600"><i class="fas fa-check-circle mr-1"></i> Успішно</div>
+                                                <div v-else class="text-red-600 break-words max-w-md"><i class="fas fa-exclamation-triangle mr-1"></i> {{ item.errorMessage }}</div>
+                                            </td>
+                                            <td class="px-6 py-3 text-right text-slate-500">{{ item.executionTimeMs }} мс</td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Серверна Пагінація -->
+                        <div class="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl flex items-center justify-between">
+                            <div class="text-sm text-slate-500">Загалом: <span class="font-bold text-slate-800">{{ totalItems }}</span></div>
+                            <div class="flex space-x-2">
+                                <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1" class="px-4 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition">Попередня</button>
+                                <span class="px-4 py-1.5 text-sm font-medium text-slate-700 bg-slate-200/50 rounded-lg">Стор. {{ currentPage }} з {{ totalPages }}</span>
+                                <button @click="changePage(currentPage + 1)" :disabled="currentPage >= totalPages" class="px-4 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition">Наступна</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Модалка Замовлень -->
+                <div v-if="selectedDocument" class="fixed inset-0 z-50 overflow-hidden">
+                    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="selectedDocument = null"></div>
+                    <div class="fixed inset-y-0 right-0 max-w-xl w-full flex">
+                        <transition name="slide">
+                            <div class="w-full h-full bg-white shadow-2xl flex flex-col">
+                                <div class="px-6 py-5 border-b bg-slate-50 flex items-center justify-between">
+                                    <div><h2 class="text-lg font-bold text-slate-800">Документ №{{ selectedDocument.number }}</h2></div>
+                                    <button @click="selectedDocument = null" class="text-slate-400 hover:text-slate-800 p-2"><i class="fas fa-times text-xl"></i></button>
                                 </div>
-
-                                <div v-else class="border border-slate-200 rounded-xl overflow-hidden">
-                                    <table class="min-w-full divide-y divide-slate-200">
-                                        <thead class="bg-slate-50">
-                                            <tr>
-                                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500">Товар (Ref)</th>
-                                                <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500">Кіл-сть</th>
-                                                <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500">Ціна</th>
-                                                <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500">Сума</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="bg-white divide-y divide-slate-100">
-                                            <tr v-for="(row, idx) in selectedDocument.items" :key="idx" class="hover:bg-slate-50">
-                                                <td class="px-4 py-3 text-sm text-slate-800">
-                                                    <div class="font-medium">{{ row.productRef || 'Невідомий товар' }}</div>
-                                                    <div class="text-xs text-slate-500">{{ row.unitName || 'шт' }}</div>
-                                                </td>
-                                                <td class="px-4 py-3 text-sm text-slate-800 text-right font-medium">{{ row.count }}</td>
-                                                <td class="px-4 py-3 text-sm text-slate-800 text-right">{{ row.price.toFixed(2) }}</td>
-                                                <td class="px-4 py-3 text-sm text-blue-600 font-semibold text-right">{{ (row.count * row.price).toFixed(2) }}</td>
+                                <div class="flex-1 overflow-y-auto p-6">
+                                    <table class="min-w-full divide-y divide-slate-200 text-sm border rounded-xl">
+                                        <thead class="bg-slate-50"><tr><th class="px-4 py-3 text-left">Товар</th><th class="px-4 py-3 text-right">Кіл-сть</th><th class="px-4 py-3 text-right">Сума</th></tr></thead>
+                                        <tbody class="divide-y">
+                                            <tr v-for="(row, idx) in selectedDocument.items" :key="idx">
+                                                <td class="px-4 py-3 font-medium">{{ row.productRef }}</td>
+                                                <td class="px-4 py-3 text-right">{{ row.count }}</td>
+                                                <td class="px-4 py-3 text-right text-blue-600 font-semibold">{{ (row.count * row.price).toFixed(2) }}</td>
                                             </tr>
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
-
-                            <!-- Футер панелі -->
-                            <div class="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end">
-                                <div class="text-right">
-                                    <p class="text-sm text-slate-500">Загальна сума документа</p>
-                                    <p class="text-xl font-bold text-slate-800">{{ calculateTotal(selectedDocument.items) }} ₴</p>
-                                </div>
-                            </div>
-                        </div>
-                    </transition>
+                        </transition>
+                    </div>
                 </div>
-            </div>
 
-        </main>
+            </main>
+        </div>
     </div>
 
     <script>
@@ -390,171 +251,121 @@
 
         createApp({
             setup() {
+                const isAuthenticated = ref(false);
+                const auth = ref({ username: 'admin', password: 'admin123', error: '' });
+
                 const currentTab = ref('overview');
                 const stats = ref({ products: 0, shops: 0, orders: 0, remains: 0 });
                 const tableData = ref([]);
                 const loading = ref(false);
-                const searchQuery = ref('');
-
-                // Пагінація
-                const currentPage = ref(1);
-                const itemsPerPage = 10;
-
-                // Slide-over модалка
                 const selectedDocument = ref(null);
 
-                let chartInstance = null;
+                const currentPage = ref(1);
+                const itemsPerPage = 15;
+                const totalItems = ref(0);
+                const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / itemsPerPage)));
 
-                // Назви вкладок
-                const titles = {
-                    'overview': 'Панель керування',
-                    'products': 'Довідник: Номенклатура',
-                    'shops': 'Довідник: Магазини та склади',
-                    'counterparties': 'Довідник: Контрагенти',
-                    'orders': 'Внутрішні замовлення'
-                };
-                const tabTitle = computed(() => titles[currentTab.value] || '');
+                const tabTitle = computed(() => {
+                    const t = { 'overview': 'Огляд', 'products': 'Номенклатура', 'shops': 'Магазини', 'counterparties': 'Контрагенти', 'orders': 'Замовлення', 'logs': 'Журнал обмінів' };
+                    return t[currentTab.value];
+                });
 
-                const tabClass = (tabName) => {
-                    const isActive = currentTab.value === tabName;
-                    return `flex items-center px-4 py-3 rounded-xl transition-all duration-200 mx-2 ${isActive ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                        }`;
-                };
+                const tabClass = (tab) => `flex items-center px-4 py-3 rounded-xl transition-all mx-2 ${tab === currentTab.value ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`;
+                const formatDateTime = (isoStr) => new Date(isoStr).toLocaleString('uk-UA');
 
-                const initChart = () => {
-                    const ctx = document.getElementById('activityChart');
-                    if (!ctx) return;
-
-                    if (chartInstance) chartInstance.destroy();
-
-                    chartInstance = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: ['Пн', 'Вв', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
-                            datasets: [{
-                                label: 'Синхронізовані пакети',
-                                data: [12, 19, 15, 25, 22, 10, 8],
-                                backgroundColor: 'rgba(59, 130, 246, 0.8)',
-                                borderRadius: 6,
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, border: { display: false } },
-                                x: { grid: { display: false }, border: { display: false } }
-                            }
-                        }
-                    });
-                };
-
-                const loadStats = async () => {
+                const checkAuth = async () => {
                     try {
                         const res = await fetch('/api/dashboard/stats');
-                        if (res.ok) stats.value = await res.json();
-                        else throw new Error('API Error');
-                    } catch (e) {
-                        stats.value = { products: 14532, shops: 124, orders: 850, remains: 54210 }; // Mock
-                    }
+                        if (res.ok) { isAuthenticated.value = true; stats.value = await res.json(); initChart(); }
+                    } catch (e) { }
                 };
 
-                const fetchData = async (endpoint) => {
-                    loading.value = true;
-                    tableData.value = [];
-                    searchQuery.value = '';
-                    currentPage.value = 1;
-
+                const login = async () => {
+                    auth.value.error = '';
                     try {
-                        // Якщо у вас ще немає контролерів для shops та counterparties,
-                        // додайте їх у C# так само, як products та orders
-                        const res = await fetch(`/api/dashboard/${endpoint}`);
+                        const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: auth.value.username, password: auth.value.password }) });
+                        if (res.ok) { isAuthenticated.value = true; switchTab('overview'); }
+                        else auth.value.error = 'Невірний логін або пароль';
+                    } catch (e) { }
+                };
+
+                const logout = async () => { await fetch('/api/auth/logout', { method: 'POST' }); isAuthenticated.value = false; };
+
+                const loadStats = async () => {
+                    try { const res = await fetch('/api/dashboard/stats'); if (res.ok) stats.value = await res.json(); } catch (e) { }
+                };
+
+                const fetchData = async () => {
+                    loading.value = true;
+                    try {
+                        const res = await fetch(`/api/dashboard/${currentTab.value}?page=${currentPage.value}&pageSize=${itemsPerPage}`);
+                        if (res.status === 401) { isAuthenticated.value = false; return; }
                         if (res.ok) {
-                            tableData.value = await res.json();
-                        } else throw new Error('API Error');
-                    } catch (e) {
-                        // MOCK ДАНІ ДЛЯ ПРЕВ'Ю (Canvas)
-                        if (endpoint === 'products') {
-                            tableData.value = Array.from({ length: 45 }).map((_, i) => ({
-                                ref: `guid-${i}`, code: `000${100 + i}`, name: `Свинина туша кат. ${i % 3 + 1}`, articul: `МЯ-${i}`, isDeleted: i % 15 === 0
-                            }));
-                        } else if (endpoint === 'orders') {
-                            tableData.value = Array.from({ length: 25 }).map((_, i) => ({
-                                ref: `guid-ord-${i}`, number: `ВН-00${100 + i}`, date: new Date(Date.now() - i * 86400000).toISOString(),
-                                isApproved: i % 4 !== 0,
-                                items: Array.from({ length: i % 5 + 1 }).map((_, j) => ({
-                                    productRef: `Товар GUID-${j}`, count: (j + 1) * 5.5, price: 120.50, unitName: 'кг'
-                                }))
-                            }));
-                        } else if (endpoint === 'shops') {
-                            tableData.value = [
-                                { ref: '1', shopNumber: 'М-01', name: 'Магазин "Центральний"', subdivisionName: 'Київ', isDeleted: false },
-                                { ref: '2', shopNumber: 'М-02', name: 'Магазин "Південний"', subdivisionName: 'Одеса', isDeleted: false }
-                            ];
-                        } else if (endpoint === 'counterparties') {
-                            tableData.value = [
-                                { ref: '1', code: 'К-001', name: 'ТОВ "М\'ясокомбінат"', taxId: '12345678', isDeleted: false },
-                                { ref: '2', code: 'К-002', name: 'ФОП Петренко І.В.', taxId: '87654321', isDeleted: false }
-                            ];
+                            const data = await res.json();
+                            tableData.value = data.items;
+                            totalItems.value = data.total;
                         }
-                    }
+                    } catch (e) { console.error(e); }
                     loading.value = false;
                 };
 
                 const switchTab = (tab) => {
                     currentTab.value = tab;
-                    if (tab === 'overview') {
-                        loadStats();
-                        nextTick(() => initChart());
-                    } else {
-                        fetchData(tab);
-                    }
+                    currentPage.value = 1;
+                    if (tab === 'overview') { loadStats(); nextTick(() => initChart()); }
+                    else fetchData();
                 };
 
-                // Фільтрація
-                const filteredData = computed(() => {
-                    if (!searchQuery.value) return tableData.value;
-                    const lowerQ = searchQuery.value.toLowerCase();
-                    return tableData.value.filter(item => {
-                        return Object.values(item).some(val =>
-                            String(val).toLowerCase().includes(lowerQ)
-                        );
-                    });
-                });
-
-                // Пагінація
-                const totalPages = computed(() => Math.ceil(filteredData.value.length / itemsPerPage) || 1);
-                const paginatedData = computed(() => {
-                    const start = (currentPage.value - 1) * itemsPerPage;
-                    return filteredData.value.slice(start, start + itemsPerPage);
-                });
-
-                // Допоміжні функції
-                const formatDate = (isoStr) => {
-                    if (!isoStr) return '';
-                    const d = new Date(isoStr);
-                    return d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                };
-
-                const calculateTotal = (items) => {
-                    if (!items) return "0.00";
-                    return items.reduce((sum, item) => sum + (item.count * item.price), 0).toFixed(2);
-                };
-
+                const changePage = (page) => { if (page >= 1 && page <= totalPages.value) { currentPage.value = page; fetchData(); } };
                 const openDetails = (doc) => { selectedDocument.value = doc; };
-                const closeDetails = () => { selectedDocument.value = null; };
+
+                let chartInstance = null;
+                const initChart = async () => {
+                    const ctx = document.getElementById('activityChart');
+                    if (!ctx) return;
+                    if (chartInstance) chartInstance.destroy();
+
+                    try {
+                        // Отримуємо реальні дані для графіку з сервера
+                        const res = await fetch('/api/dashboard/activity');
+                        if (!res.ok) return;
+                        const data = await res.json();
+
+                        // Формуємо останні 7 днів для осі Х
+                        const labels = []; const counts = [];
+                        for (let i = 6; i >= 0; i--) {
+                            let d = new Date(); d.setDate(d.getDate() - i);
+                            let dateStr = d.toISOString().split('T')[0];
+                            labels.push(d.toLocaleDateString('uk-UA', { weekday: 'short', day: 'numeric' }));
+
+                            // Шукаємо чи є вивантаження в цей день
+                            let match = data.find(x => x.date.split('T')[0] === dateStr);
+                            counts.push(match ? match.totalRecords : 0);
+                        }
+
+                        chartInstance = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Рядків завантажено',
+                                    data: counts,
+                                    borderColor: '#3b82f6',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                    fill: true, tension: 0.4, borderWidth: 3, pointRadius: 4, pointBackgroundColor: '#fff'
+                                }]
+                            },
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }
+                        });
+                    } catch (e) { console.error('Помилка графіка', e); }
+                };
 
                 onMounted(() => {
-                    switchTab('overview');
-                    setInterval(loadStats, 15000);
+                    checkAuth();
+                    setInterval(() => { if (isAuthenticated.value && currentTab.value === 'overview') loadStats(); }, 15000);
                 });
 
-                return {
-                    currentTab, stats, loading, searchQuery, tabTitle, tabClass, switchTab,
-                    filteredData, paginatedData, currentPage, totalPages, itemsPerPage,
-                    formatDate, openDetails, closeDetails, selectedDocument, calculateTotal
-                };
+                return { isAuthenticated, auth, login, logout, currentTab, switchTab, tabClass, tabTitle, stats, tableData, loading, totalItems, totalPages, currentPage, changePage, openDetails, selectedDocument, formatDateTime };
             }
         }).mount('#app');
     </script>
