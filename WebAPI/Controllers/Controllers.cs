@@ -66,5 +66,11 @@ namespace TradeDocsApi.Controllers
 
         [HttpGet("orders")]
         public async Task<IActionResult> GetOrders() => Ok(await _db.Orders.Include(o => o.Items).OrderByDescending(o => o.Date).Take(50).ToListAsync());
+
+        [HttpGet("shops")]
+        public async Task<IActionResult> GetShops() => Ok(await _db.Shops.Take(100).ToListAsync());
+
+        [HttpGet("counterparties")]
+        public async Task<IActionResult> GetCounterparties() => Ok(await _db.Counterparties.Take(100).ToListAsync());
     }
 }
